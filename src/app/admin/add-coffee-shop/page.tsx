@@ -194,15 +194,14 @@ export default function AddCoffeeShop() {
 
       const uploadPromises = imageFiles.map(async (file) => {
         try {
-          // Create unique filename
+          // Create unique filename with extension
           const timestamp = new Date().getTime();
           const fileExt = file.name.split('.').pop();
-          const fileName = `${timestamp}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-          // Important: Don't include coffee-shops/ in the path when uploading
+          const fileName = `${timestamp}-${Math.random().toString(36).substring(2)}${fileExt ? `.${fileExt}` : ''}`;
           const filePath = fileName;
 
-          // Upload to Supabase Storage with progress tracking
-          const { data, error: uploadError } = await supabase.storage
+          // Upload to Supabase Storage
+          const { data: uploadData, error: uploadError } = await supabase.storage
             .from('coffee-shop-images')
             .upload(filePath, file, {
               cacheControl: '3600',
@@ -224,15 +223,16 @@ export default function AddCoffeeShop() {
           }
 
           // Get public URL
-          const { data: { publicUrl } } = supabase.storage
+          const { data } = supabase.storage
             .from('coffee-shop-images')
             .getPublicUrl(filePath);
 
-          // Debug log
-          console.log('Raw public URL:', publicUrl);
-          // Try to construct URL manually
-          const manualUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/coffee-shop-images/${filePath}`;
-          console.log('Manual URL:', manualUrl);
+          let publicUrl = data.publicUrl;
+          if (!publicUrl.startsWith('http')) {
+            publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/coffee-shop-images/${filePath}`;
+          }
+          
+          console.log('Final URL:', publicUrl);
 
           return publicUrl;
         } catch (error) {
@@ -318,8 +318,6 @@ export default function AddCoffeeShop() {
     }
   };
 
-  console.log(formData.images)
-
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-6xl mx-auto bg-white rounded-lg shadow">
@@ -399,16 +397,15 @@ export default function AddCoffeeShop() {
                     {formData.images.map((url, index) => (
                       <div key={index} className="relative group aspect-square">
                         <div className="w-full h-full rounded-lg overflow-hidden">
-                          <Image
+                          <img
                             src={url}
                             alt={`Preview ${index + 1}`}
-                            width={300}
-                            height={300}
                             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                             onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.onerror = null; // Prevent infinite loop
-                              target.src = url; // Try loading the URL directly
+                              console.error('Image load error:', url);
+                              const imgElement = e.target as HTMLImageElement;
+                              imgElement.style.backgroundColor = '#f3f4f6';
+                              imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTMgNEg4LjhDNy4xMTk4NCA0IDYuMjc5NzYgNCA1LjYzODAzIDQuMzI2OThDNS4wNzM1NCA0LjYxNDYgNC42MTQ2IDUuMDczNTQgNC4zMjY5OCA1LjYzODAzQzQgNi4yNzk3NiA0IDcuMTE5ODQgNCA4LjhWMTUuMkM0IDE2Ljg4MDIgNCAxNy43MjAyIDQuMzI2OTggMTguMzYyQzQuNjE0NiAxOC45MjY1IDUuMDczNTQgMTkuMzg1NCA1LjYzODAzIDE5LjY3M0M2LjI3OTc2IDIwIDcuMTE5ODQgMjAgOC44IDIwSDE1LjJDMTYuODgwMiAyMCAxNy43MjAyIDIwIDE4LjM2MiAxOS42NzNDMTguOTI2NSAxOS4zODU0IDE5LjM4NTQgMTguOTI2NSAxOS42NzMgMTguMzYyQzIwIDE3LjcyMDIgMjAgMTYuODgwMiAyMCAxNS4yVjExTTIwIDhWNE0yMCA0SDE2TTIwIDRMMTYgOCIgc3Ryb2tlPSIjNjQ3NDhCIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==' // Placeholder SVG
                             }}
                           />
                         </div>
