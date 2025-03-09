@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import type { CoffeeShop } from '@/lib/supabase/types';
 
@@ -29,6 +29,10 @@ export default function AddCoffeeShop() {
   const [videoUrl, setVideoUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', content: '' });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Check Supabase connection when component mounts
   useEffect(() => {
@@ -108,6 +112,65 @@ export default function AddCoffeeShop() {
     }));
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        // Tạo tên file ngẫu nhiên để tránh trùng lặp
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        // Upload file lên Supabase Storage
+        const { data, error } = await supabase.storage
+          .from('coffee-shop-images')
+          .upload(filePath, file);
+
+        if (error) throw error;
+
+        // Lấy public URL của file
+        const { data: { publicUrl } } = supabase.storage
+          .from('coffee-shop-images')
+          .getPublicUrl(filePath);
+
+        return publicUrl;
+      });
+
+      // Upload tất cả các file và lấy URLs
+      const uploadedUrls = await Promise.all(uploadPromises);
+
+      // Cập nhật form data với URLs mới
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...uploadedUrls]
+      }));
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+      setMessage({
+        type: 'success',
+        content: 'Tải ảnh lên thành công!'
+      });
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      setMessage({
+        type: 'error',
+        content: 'Có lỗi xảy ra khi tải ảnh lên.'
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -153,247 +216,195 @@ export default function AddCoffeeShop() {
 
   return (
     <div className="min-h-screen bg-gray-100 py-8">
-      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
-        {/* Connection Status */}
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">Thêm Quán Cafe Mới</h1>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Trạng thái kết nối:</span>
-            {connectionStatus === 'checking' && (
-              <span className="flex items-center text-yellow-600">
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Đang kiểm tra
-              </span>
-            )}
-            {connectionStatus === 'connected' && (
-              <span className="flex items-center text-green-600">
-                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                Đã kết nối
-              </span>
-            )}
-            {connectionStatus === 'error' && (
-              <div className="flex flex-col">
-                <span className="flex items-center text-red-600">
-                  <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                  </svg>
-                  Lỗi kết nối
-                </span>
-                {connectionError && (
-                  <span className="text-xs text-red-500">{connectionError}</span>
-                )}
-              </div>
-            )}
-            
-            <button
-              type="button"
-              onClick={checkSupabaseConnection}
-              className="ml-2 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-            >
-              Kiểm tra lại
-            </button>
-          </div>
-        </div>
+      <div className="max-w-6xl mx-auto bg-white rounded-lg shadow">
+        <form onSubmit={handleSubmit} className="flex">
+          {/* Left Zone - Image Upload */}
+          <div className="w-1/2 p-6 border-r border-gray-200">
+            <div className="h-full border-2 border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center text-center">
+              <svg 
+                className="w-12 h-12 text-gray-400" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth="2" 
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                />
+              </svg>
+              <p className="mt-4 text-sm text-gray-600">
+                Chọn một tệp hoặc kéo và thả tệp ở đây
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Bạn nên sử dụng tệp tin .jpg chất lượng cao có kích thước dưới 20 MB hoặc tệp tin .mp4 chất lượng cao có kích thước dưới 200 MB.
+              </p>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept="image/*,video/*"
+                className="hidden"
+              />
+              <button
+                type="button"
+                className="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Lưu từ URL
+              </button>
 
-        {message.content && (
-          <div className={`mb-4 p-4 rounded ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-            {message.content}
+              {/* Preview Images */}
+              {formData.images.length > 0 && (
+                <div className="mt-6 w-full grid grid-cols-2 gap-4">
+                  {formData.images.map((url, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={url}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Thông tin cơ bản */}
-          <div className="space-y-4">
+          {/* Right Zone - Information Fields */}
+          <div className="w-1/2 p-6 space-y-6">
+            {/* Tên quán */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Tên quán *</label>
+              <label className="block text-sm font-medium text-gray-700">Tên quán</label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                required
+                placeholder="Nhập tên quán"
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
               />
             </div>
 
+            {/* Địa chỉ */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Địa chỉ</label>
+              <input
+                type="text"
+                name="address"
+                value={formData.address}
+                onChange={handleInputChange}
+                placeholder="Nhập địa chỉ"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
+              />
+            </div>
+
+            {/* Mô tả */}
             <div>
               <label className="block text-sm font-medium text-gray-700">Mô tả</label>
               <textarea
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
+                placeholder="Thêm mô tả chi tiết về quán"
                 rows={4}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Địa chỉ *</label>
-              <input
-                type="text"
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Instagram URL</label>
-              <input
-                type="url"
-                name="instagram_url"
-                value={formData.instagram_url}
-                onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Facebook URL</label>
-              <input
-                type="url"
-                name="fb_url"
-                value={formData.fb_url}
-                onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
-              />
-            </div>
-          </div>
-
-          {/* Ảnh và Video */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Thêm ảnh</label>
-              <div className="flex gap-2 mt-1">
-                <input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="Nhập URL ảnh"
-                  className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
-                />
-                <button
-                  type="button"
-                  onClick={addImage}
-                  className="px-4 py-2 bg-brown-600 text-white rounded-md hover:bg-brown-700"
-                >
-                  Thêm
-                </button>
-              </div>
-              <div className="mt-2 space-y-2">
-                {formData.images.map((url, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <span className="flex-1 truncate">{url}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      Xóa
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Thêm video</label>
-              <div className="flex gap-2 mt-1">
-                <input
-                  type="url"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  placeholder="Nhập URL video"
-                  className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
-                />
-                <button
-                  type="button"
-                  onClick={addVideo}
-                  className="px-4 py-2 bg-brown-600 text-white rounded-md hover:bg-brown-700"
-                >
-                  Thêm
-                </button>
-              </div>
-              <div className="mt-2 space-y-2">
-                {formData.videos.map((url, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <span className="flex-1 truncate">{url}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeVideo(index)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      Xóa
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Tọa độ */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Tọa độ</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Social Media Links */}
+            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Latitude</label>
+                <label className="block text-sm font-medium text-gray-700">Facebook URL</label>
                 <input
-                  type="number"
-                  step="any"
-                  name="coordinates.latitude"
-                  value={formData.coordinates.latitude}
+                  type="url"
+                  name="fb_url"
+                  value={formData.fb_url}
                   onChange={handleInputChange}
+                  placeholder="https://facebook.com/..."
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Longitude</label>
+                <label className="block text-sm font-medium text-gray-700">Instagram URL</label>
                 <input
-                  type="number"
-                  step="any"
-                  name="coordinates.longitude"
-                  value={formData.coordinates.longitude}
+                  type="url"
+                  name="instagram_url"
+                  value={formData.instagram_url}
                   onChange={handleInputChange}
+                  placeholder="https://instagram.com/..."
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
                 />
               </div>
             </div>
-          </div>
 
-          {/* Đánh giá */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Đánh giá</label>
-            <input
-              type="number"
-              name="rating"
-              min="1"
-              max="5"
-              value={formData.rating}
-              onChange={handleInputChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
-            />
-          </div>
+            {/* Đánh giá */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Đánh giá</label>
+              <input
+                type="number"
+                name="rating"
+                min="1"
+                max="5"
+                value={formData.rating}
+                onChange={handleInputChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
+              />
+            </div>
 
-          <div className="pt-4">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`w-full py-3 px-4 text-white rounded-md ${
-                isSubmitting
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-brown-600 hover:bg-brown-700'
-              }`}
-            >
-              {isSubmitting ? 'Đang thêm...' : 'Thêm quán cafe'}
-            </button>
+            {/* Tọa độ */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-gray-700">Tọa độ</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600">Latitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    name="coordinates.latitude"
+                    value={formData.coordinates.latitude}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600">Longitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    name="coordinates.longitude"
+                    value={formData.coordinates.longitude}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <div className="pt-4">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className={`w-full py-3 px-4 text-white rounded-md ${
+                  isSubmitting
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-brown-600 hover:bg-brown-700'
+                }`}
+              >
+                {isSubmitting ? 'Đang thêm...' : 'Thêm quán cafe'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
