@@ -6,7 +6,6 @@ import type { CoffeeShop } from '@/lib/supabase/types';
 import Image from 'next/image';
 
 type FormData = Omit<CoffeeShop, 'id' | 'created_at'>;
-
 interface UploadProgressEvent {
   loaded: number;
   total: number;
@@ -105,11 +104,45 @@ export default function AddCoffeeShop() {
     }
   };
 
-  const removeImage = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }));
+  const removeImage = async (index: number) => {
+    try {
+      const imageUrl = formData.images[index];
+      // Extract filename from URL
+      const filename = imageUrl.split('/').pop();
+      
+      if (filename) {
+        // Delete from Supabase storage
+        const { error } = await supabase.storage
+          .from('coffee-shop-images')
+          .remove([filename]);
+
+        if (error) {
+          console.error('Error deleting image from storage:', error);
+          setMessage({
+            type: 'error',
+            content: `Lỗi khi xóa ảnh: ${error.message}`,
+          });
+          return;
+        }
+      }
+
+      // Remove from form state
+      setFormData((prev) => ({
+        ...prev,
+        images: prev.images.filter((_, i) => i !== index),
+      }));
+
+      setMessage({
+        type: 'success',
+        content: 'Đã xóa ảnh thành công!',
+      });
+    } catch (error) {
+      console.error('Error removing image:', error);
+      setMessage({
+        type: 'error',
+        content: 'Có lỗi xảy ra khi xóa ảnh.',
+      });
+    }
   };
 
   const removeVideo = (index: number) => {
@@ -413,28 +446,16 @@ export default function AddCoffeeShop() {
                       return (
                         <div key={index} className="relative group aspect-square">
                           <div className="w-full h-full rounded-lg overflow-hidden bg-gray-100">
-                            <img
+                            <Image
                               src={url}
                               alt={`Preview ${index + 1}`}
+                              width={400}
+                              height={400}
                               className="w-full h-full object-cover"
-                              crossOrigin="anonymous"
-                              onLoad={() => console.log('Image loaded successfully:', url)}
-                              onError={(e) => {
-                                console.error('Image load error:', url);
-                                const imgElement = e.target as HTMLImageElement;
-                                imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTMgNEg4LjhDNy4xMTk4NCA0IDYuMjc5NzYgNCA1LjYzODAzIDQuMzI2OThDNS4wNzM1NCA0LjYxNDYgNC42MTQ2IDUuMDczNTQgNC4zMjY5OCA1LjYzODAzQzQgNi4yNzk3NiA0IDcuMTE5ODQgNCA4LjhWMTUuMkM0IDE2Ljg4MDIgNCAxNy43MjAyIDQuMzI2OTggMTguMzYyQzQuNjE0NiAxOC45MjY1IDUuMDczNTQgMTkuMzg1NCA1LjYzODAzIDE5LjY3M0M2LjI3OTc2IDIwIDcuMTE5ODQgMjAgOC44IDIwSDE1LjJDMTYuODgwMiAyMCAxNy43MjAyIDIwIDE4LjM2MiAxOS42NzNDMTguOTI2NSAxOS4zODU0IDE5LjM4NTQgMTguOTI2NSAxOS42NzMgMTguMzYyQzIwIDE3LjcyMDIgMjAgMTYuODgwMiAyMCAxNS4yVjExTTIwIDhWNE0yMCA0SDE2TTIwIDRMMTYgOCIgc3Ryb2tlPSIjNjQ3NDhCIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==';
-                              }}
+                              priority={index < 4}
+                              quality={75}
                             />
-
-                            {/* <Image
-                              src={'https://images.pexels.com/photos/374757/pexels-photo-374757.jpeg'}
-                              alt={`Preview ${index + 1}`}
-                              width={300}
-                              height={300}
-                              className="w-full h-auto object-cover group-hover:scale-110 transition duration-300"
-                            /> */}
                           </div>
-                          {/* <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 rounded-lg z-10" /> */}
                           <button
                             type="button"
                             onClick={() => removeImage(index)}
@@ -468,72 +489,72 @@ export default function AddCoffeeShop() {
           <div className="w-1/2 p-6 space-y-6">
             {/* Tên quán */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Tên quán</label>
+              <label className="block text-base font-medium text-gray-900 mb-2">Tiêu đề</label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="Nhập tên quán"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
+                className="mt-1 block w-full rounded-[12px] border-gray-200 shadow-sm py-4 px-4 text-base text-gray-900 placeholder:text-gray-500 hover:border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
               />
             </div>
 
             {/* Địa chỉ */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Địa chỉ</label>
+              <label className="block text-base font-medium text-gray-900 mb-2">Địa chỉ</label>
               <input
                 type="text"
                 name="address"
                 value={formData.address}
                 onChange={handleInputChange}
                 placeholder="Nhập địa chỉ"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
+                className="mt-1 block w-full rounded-[12px] border-gray-200 shadow-sm py-4 px-4 text-base text-gray-900 placeholder:text-gray-500 hover:border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
               />
             </div>
 
             {/* Mô tả */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Mô tả</label>
+              <label className="block text-base font-medium text-gray-900 mb-2">Mô tả</label>
               <textarea
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
                 placeholder="Thêm mô tả chi tiết về quán"
                 rows={4}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
+                className="mt-1 block w-full rounded-[12px] border-gray-200 shadow-sm py-4 px-4 text-base text-gray-900 placeholder:text-gray-500 hover:border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
               />
             </div>
 
             {/* Social Media Links */}
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Facebook URL</label>
+                <label className="block text-base font-medium text-gray-900 mb-2">Liên kết</label>
                 <input
                   type="url"
                   name="fb_url"
                   value={formData.fb_url}
                   onChange={handleInputChange}
-                  placeholder="https://facebook.com/..."
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
+                  placeholder="Thêm liên kết"
+                  className="mt-1 block w-full rounded-[12px] border-gray-200 shadow-sm py-4 px-4 text-base text-gray-900 placeholder:text-gray-500 hover:border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Instagram URL</label>
+                <label className="block text-base font-medium text-gray-900 mb-2">Instagram URL</label>
                 <input
                   type="url"
                   name="instagram_url"
                   value={formData.instagram_url}
                   onChange={handleInputChange}
                   placeholder="https://instagram.com/..."
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
+                  className="mt-1 block w-full rounded-[12px] border-gray-200 shadow-sm py-4 px-4 text-base text-gray-900 placeholder:text-gray-500 hover:border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
                 />
               </div>
             </div>
 
             {/* Đánh giá */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Đánh giá</label>
+              <label className="block text-base font-medium text-gray-900 mb-2">Đánh giá</label>
               <input
                 type="number"
                 name="rating"
@@ -541,34 +562,37 @@ export default function AddCoffeeShop() {
                 max="5"
                 value={formData.rating}
                 onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
+                placeholder="Nhập đánh giá từ 1-5"
+                className="mt-1 block w-full rounded-[12px] border-gray-200 shadow-sm py-4 px-4 text-base text-gray-900 placeholder:text-gray-500 hover:border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
               />
             </div>
 
             {/* Tọa độ */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-700">Tọa độ</h3>
+              <h3 className="block text-base font-medium text-gray-900 mb-2">Tọa độ</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-600">Latitude</label>
+                  <label className="block text-base font-medium text-gray-900 mb-2">Latitude</label>
                   <input
                     type="number"
                     step="any"
                     name="coordinates.latitude"
                     value={formData.coordinates.latitude}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
+                    placeholder="Vĩ độ"
+                    className="mt-1 block w-full rounded-[12px] border-gray-200 shadow-sm py-4 px-4 text-base text-gray-900 placeholder:text-gray-500 hover:border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600">Longitude</label>
+                  <label className="block text-base font-medium text-gray-900 mb-2">Longitude</label>
                   <input
                     type="number"
                     step="any"
                     name="coordinates.longitude"
                     value={formData.coordinates.longitude}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brown-500 focus:ring-brown-500"
+                    placeholder="Kinh độ"
+                    className="mt-1 block w-full rounded-[12px] border-gray-200 shadow-sm py-4 px-4 text-base text-gray-900 placeholder:text-gray-500 hover:border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
                   />
                 </div>
               </div>
