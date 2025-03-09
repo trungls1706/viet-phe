@@ -3,8 +3,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import type { CoffeeShop } from '@/lib/supabase/types';
+import Image from 'next/image';
 
 type FormData = Omit<CoffeeShop, 'id' | 'created_at'>;
+
+interface UploadProgressEvent {
+  loaded: number;
+  total: number;
+}
 
 export default function AddCoffeeShop() {
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
@@ -31,7 +37,7 @@ export default function AddCoffeeShop() {
   const [message, setMessage] = useState({ type: '', content: '' });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [isUploading, setIsUploading] = useState(false);
 
   const [dragActive, setDragActive] = useState(false);
@@ -149,72 +155,123 @@ export default function AddCoffeeShop() {
 
     setIsUploading(true);
     setMessage({ type: '', content: '' });
+    setUploadProgress({});
 
     try {
-      // Filter for only image files
-      const imageFiles = files.filter(file => file.type.startsWith('image/'));
+      // Validate file types
+      const imageFiles = files.filter(file => {
+        const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
+        if (!validTypes.includes(file.type)) {
+          setMessage({
+            type: 'error',
+            content: `File "${file.name}" không phải là định dạng ảnh được hỗ trợ (JPG, PNG, WEBP, HEIC)`
+          });
+          return false;
+        }
+        return true;
+      });
       
       if (imageFiles.length === 0) {
-        throw new Error('Vui lòng chọn tệp hình ảnh');
+        throw new Error('Vui lòng chọn tệp hình ảnh hợp lệ');
       }
 
       // Check file sizes
-      const oversizedFiles = imageFiles.filter(file => file.size > 20 * 1024 * 1024);
+      const oversizedFiles = imageFiles.filter(file => {
+        const maxSize = 20 * 1024 * 1024; // 20MB
+        if (file.size > maxSize) {
+          setMessage({
+            type: 'error',
+            content: `File "${file.name}" vượt quá giới hạn 20MB`
+          });
+          return true;
+        }
+        return false;
+      });
+      
       if (oversizedFiles.length > 0) {
         throw new Error(`${oversizedFiles.length} tệp vượt quá giới hạn 20MB`);
       }
 
       const uploadPromises = imageFiles.map(async (file) => {
-        // Create unique filename
-        const timestamp = new Date().getTime();
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${timestamp}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `coffee-shops/${fileName}`;
+        try {
+          // Create unique filename
+          const timestamp = new Date().getTime();
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${timestamp}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+          // Important: Don't include coffee-shops/ in the path when uploading
+          const filePath = fileName;
 
-        // Upload to Supabase Storage
-        const { data, error: uploadError } = await supabase.storage
-          .from('coffee-shop-images')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false
+          // Upload to Supabase Storage with progress tracking
+          const { data, error: uploadError } = await supabase.storage
+            .from('coffee-shop-images')
+            .upload(filePath, file, {
+              cacheControl: '3600',
+              upsert: false,
+              // @ts-ignore
+              onUploadProgress: (progress: UploadProgressEvent) => {
+                if (progress) {
+                  const percent = (progress.loaded / progress.total) * 100;
+                  setUploadProgress(prev => ({
+                    ...prev,
+                    [fileName]: Math.round(percent)
+                  }));
+                }
+              }
+            });
+
+          if (uploadError) {
+            throw uploadError;
+          }
+
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('coffee-shop-images')
+            .getPublicUrl(filePath);
+
+          // Debug log
+          console.log('Raw public URL:', publicUrl);
+          // Try to construct URL manually
+          const manualUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/coffee-shop-images/${filePath}`;
+          console.log('Manual URL:', manualUrl);
+
+          return publicUrl;
+        } catch (error) {
+          console.error(`Error uploading file ${file.name}:`, error);
+          setMessage({
+            type: 'error',
+            content: `Lỗi khi tải lên file "${file.name}": ${error instanceof Error ? error.message : 'Lỗi không xác định'}`
           });
-
-        if (uploadError) {
-          throw uploadError;
+          return null;
         }
-
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('coffee-shop-images')
-          .getPublicUrl(filePath);
-
-        return publicUrl;
       });
 
-      const uploadedUrls = await Promise.all(uploadPromises);
+      const uploadedUrls = (await Promise.all(uploadPromises)).filter(url => url !== null);
 
-      setFormData(prev => ({
-        ...prev,
-        images: [...prev.images, ...uploadedUrls]
-      }));
+      if (uploadedUrls.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          images: [...prev.images, ...uploadedUrls]
+        }));
+
+        setMessage({
+          type: 'success',
+          content: `Đã tải lên ${uploadedUrls.length} ảnh thành công!`
+        });
+      }
 
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-
-      setMessage({
-        type: 'success',
-        content: `Đã tải lên ${uploadedUrls.length} ảnh thành công!`
-      });
     } catch (error) {
-      console.error('Error uploading files:', error);
+      console.error('Error handling files:', error);
       setMessage({
         type: 'error',
-        content: error instanceof Error ? error.message : 'Có lỗi xảy ra khi tải ảnh lên.'
+        content: error instanceof Error ? error.message : 'Có lỗi xảy ra khi xử lý files.'
       });
     } finally {
       setIsUploading(false);
+      setUploadProgress({});
     }
   };
 
@@ -260,6 +317,8 @@ export default function AddCoffeeShop() {
       setIsSubmitting(false);
     }
   };
+
+  console.log(formData.images)
 
   return (
     <div className="min-h-screen bg-gray-100 py-8">
@@ -330,24 +389,35 @@ export default function AddCoffeeShop() {
 
               {/* Preview Images */}
               {formData.images.length > 0 && (
-                <div className="mt-6 w-full" onClick={e => e.stopPropagation()}>
+                <div className="mt-8 w-full" onClick={e => e.stopPropagation()}>
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-sm font-medium text-gray-700">
+                    <h3 className="text-lg font-medium text-gray-900">
                       Ảnh đã tải lên ({formData.images.length})
                     </h3>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {formData.images.map((url, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={url}
-                          alt={`Preview ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg"
-                        />
+                      <div key={index} className="relative group aspect-square">
+                        <div className="w-full h-full rounded-lg overflow-hidden">
+                          <Image
+                            src={url}
+                            alt={`Preview ${index + 1}`}
+                            width={300}
+                            height={300}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.onerror = null; // Prevent infinite loop
+                              target.src = url; // Try loading the URL directly
+                            }}
+                          />
+                        </div>
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 rounded-lg" />
                         <button
                           type="button"
                           onClick={() => removeImage(index)}
-                          className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-red-600"
+                          title="Xóa ảnh"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -470,6 +540,30 @@ export default function AddCoffeeShop() {
                 </div>
               </div>
             </div>
+
+            {/* Upload Progress */}
+            {Object.entries(uploadProgress).length > 0 && (
+              <div className="mt-4 space-y-2">
+                {Object.entries(uploadProgress).map(([fileName, progress]) => (
+                  <div key={fileName} className="relative pt-1">
+                    <div className="flex mb-2 items-center justify-between">
+                      <div className="text-xs font-semibold inline-block text-brown-600">
+                        {fileName}
+                      </div>
+                      <div className="text-xs font-semibold inline-block text-brown-600">
+                        {progress}%
+                      </div>
+                    </div>
+                    <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-brown-200">
+                      <div
+                        style={{ width: `${progress}%` }}
+                        className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-brown-500 transition-all duration-300"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Submit Button */}
             <div className="pt-4">
