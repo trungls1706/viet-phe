@@ -34,6 +34,8 @@ export default function AddCoffeeShop() {
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
 
+  const [dragActive, setDragActive] = useState(false);
+
   // Check Supabase connection when component mounts
   useEffect(() => {
     checkSupabaseConnection();
@@ -112,28 +114,76 @@ export default function AddCoffeeShop() {
     }));
   };
 
+  // Handle drag events
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  // Handle drop event
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    await handleFiles(files);
+  };
+
+  // Handle file input change
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      await handleFiles(files);
+    }
+  };
+
+  // Common function to handle files
+  const handleFiles = async (files: File[]) => {
+    if (files.length === 0) return;
 
     setIsUploading(true);
-    setUploadProgress(0);
+    setMessage({ type: '', content: '' });
 
     try {
-      const uploadPromises = Array.from(files).map(async (file) => {
-        // Tạo tên file ngẫu nhiên để tránh trùng lặp
+      // Filter for only image files
+      const imageFiles = files.filter(file => file.type.startsWith('image/'));
+      
+      if (imageFiles.length === 0) {
+        throw new Error('Vui lòng chọn tệp hình ảnh');
+      }
+
+      // Check file sizes
+      const oversizedFiles = imageFiles.filter(file => file.size > 20 * 1024 * 1024);
+      if (oversizedFiles.length > 0) {
+        throw new Error(`${oversizedFiles.length} tệp vượt quá giới hạn 20MB`);
+      }
+
+      const uploadPromises = imageFiles.map(async (file) => {
+        // Create unique filename
+        const timestamp = new Date().getTime();
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `${fileName}`;
+        const fileName = `${timestamp}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `coffee-shops/${fileName}`;
 
-        // Upload file lên Supabase Storage
-        const { data, error } = await supabase.storage
+        // Upload to Supabase Storage
+        const { data, error: uploadError } = await supabase.storage
           .from('coffee-shop-images')
-          .upload(filePath, file);
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
 
-        if (error) throw error;
+        if (uploadError) {
+          throw uploadError;
+        }
 
-        // Lấy public URL của file
+        // Get public URL
         const { data: { publicUrl } } = supabase.storage
           .from('coffee-shop-images')
           .getPublicUrl(filePath);
@@ -141,10 +191,8 @@ export default function AddCoffeeShop() {
         return publicUrl;
       });
 
-      // Upload tất cả các file và lấy URLs
       const uploadedUrls = await Promise.all(uploadPromises);
 
-      // Cập nhật form data với URLs mới
       setFormData(prev => ({
         ...prev,
         images: [...prev.images, ...uploadedUrls]
@@ -157,17 +205,16 @@ export default function AddCoffeeShop() {
 
       setMessage({
         type: 'success',
-        content: 'Tải ảnh lên thành công!'
+        content: `Đã tải lên ${uploadedUrls.length} ảnh thành công!`
       });
     } catch (error) {
       console.error('Error uploading files:', error);
       setMessage({
         type: 'error',
-        content: 'Có lỗi xảy ra khi tải ảnh lên.'
+        content: error instanceof Error ? error.message : 'Có lỗi xảy ra khi tải ảnh lên.'
       });
     } finally {
       setIsUploading(false);
-      setUploadProgress(0);
     }
   };
 
@@ -217,65 +264,103 @@ export default function AddCoffeeShop() {
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-6xl mx-auto bg-white rounded-lg shadow">
+        {message.content && (
+          <div 
+            className={`p-4 ${
+              message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+            }`}
+          >
+            {message.content}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="flex">
           {/* Left Zone - Image Upload */}
           <div className="w-1/2 p-6 border-r border-gray-200">
-            <div className="h-full border-2 border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center text-center">
-              <svg 
-                className="w-12 h-12 text-gray-400" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth="2" 
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                />
-              </svg>
-              <p className="mt-4 text-sm text-gray-600">
-                Chọn một tệp hoặc kéo và thả tệp ở đây
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                Bạn nên sử dụng tệp tin .jpg chất lượng cao có kích thước dưới 20 MB hoặc tệp tin .mp4 chất lượng cao có kích thước dưới 200 MB.
-              </p>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                accept="image/*,video/*"
-                className="hidden"
-              />
-              <button
-                type="button"
-                className="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                Lưu từ URL
-              </button>
+            <div 
+              className={`h-full border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center relative
+                ${dragActive ? 'border-brown-500 bg-brown-50' : 'border-gray-300'}
+                ${isUploading ? 'border-gray-400 bg-gray-50' : ''}
+              `}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+            >
+              {isUploading ? (
+                <div className="flex flex-col items-center">
+                  <svg className="animate-spin h-10 w-10 text-brown-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <p className="mt-4 text-sm text-gray-600">Đang tải lên...</p>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                  />
+                  <svg 
+                    className="w-12 h-12 text-gray-400" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth="2" 
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                  <p className="mt-4 text-sm text-gray-600">
+                    Kéo và thả ảnh vào đây hoặc
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-2 px-4 py-2 bg-brown-600 text-white rounded-md hover:bg-brown-700 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Chọn ảnh
+                  </button>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Chỉ chấp nhận file ảnh, kích thước tối đa 20MB
+                  </p>
+                </>
+              )}
 
               {/* Preview Images */}
               {formData.images.length > 0 && (
-                <div className="mt-6 w-full grid grid-cols-2 gap-4">
-                  {formData.images.map((url, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={url}
-                        alt={`Preview ${index + 1}`}
-                        className="w-full h-32 object-cover rounded-lg"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
+                <div className="mt-6 w-full">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-sm font-medium text-gray-700">
+                      Ảnh đã tải lên ({formData.images.length})
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {formData.images.map((url, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={url}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
