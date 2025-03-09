@@ -277,10 +277,12 @@ export default function AddCoffeeShop() {
           {/* Left Zone - Image Upload */}
           <div className="w-1/2 p-6 border-r border-gray-200">
             <div 
-              className={`h-full border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center relative
-                ${dragActive ? 'border-brown-500 bg-brown-50' : 'border-gray-300'}
-                ${isUploading ? 'border-gray-400 bg-gray-50' : ''}
+              className={`h-full border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center relative cursor-pointer
+                ${dragActive ? 'border-brown-500 bg-brown-50' : 'border-gray-300 hover:bg-gray-50 hover:border-gray-400'}
+                ${isUploading ? 'border-gray-400 bg-gray-50 cursor-wait' : ''}
+                transition-all duration-200 ease-in-out
               `}
+              onClick={() => fileInputRef.current?.click()}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
@@ -305,7 +307,7 @@ export default function AddCoffeeShop() {
                     className="hidden"
                   />
                   <svg 
-                    className="w-12 h-12 text-gray-400" 
+                    className="w-12 h-12 text-gray-400 group-hover:text-gray-500" 
                     fill="none" 
                     stroke="currentColor" 
                     viewBox="0 0 24 24"
@@ -318,15 +320,8 @@ export default function AddCoffeeShop() {
                     />
                   </svg>
                   <p className="mt-4 text-sm text-gray-600">
-                    Kéo và thả ảnh vào đây hoặc
+                    Kéo và thả ảnh vào đây hoặc click để chọn
                   </p>
-                  <button
-                    type="button"
-                    className="mt-2 px-4 py-2 bg-brown-600 text-white rounded-md hover:bg-brown-700 transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Chọn ảnh
-                  </button>
                   <p className="mt-2 text-xs text-gray-500">
                     Chỉ chấp nhận file ảnh, kích thước tối đa 20MB
                   </p>
@@ -335,7 +330,7 @@ export default function AddCoffeeShop() {
 
               {/* Preview Images */}
               {formData.images.length > 0 && (
-                <div className="mt-6 w-full">
+                <div className="mt-6 w-full" onClick={e => e.stopPropagation()}>
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-sm font-medium text-gray-700">
                       Ảnh đã tải lên ({formData.images.length})
@@ -352,7 +347,7 @@ export default function AddCoffeeShop() {
                         <button
                           type="button"
                           onClick={() => removeImage(index)}
-                          className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
