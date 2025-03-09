@@ -19,6 +19,8 @@ export default function MasonryGrid({ images, columns = 3 }: MasonryGridProps) {
     images.filter((_, index) => index % columns === col)
   );
 
+  console.log('columnImages', columnImages);  
+
   return (
     <div className="flex gap-4">
       {columnImages.map((column, columnIndex) => (

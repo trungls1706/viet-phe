@@ -13,7 +13,9 @@ interface UploadProgressEvent {
 }
 
 export default function AddCoffeeShop() {
-  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>(
+    'checking'
+  );
   const [connectionError, setConnectionError] = useState<string>('');
 
   const [formData, setFormData] = useState<FormData>({
@@ -52,10 +54,7 @@ export default function AddCoffeeShop() {
     try {
       setConnectionStatus('checking');
       // Try to query the coffee_shops table
-      const { data, error } = await supabase
-        .from('coffee_shops')
-        .select('id')
-        .limit(1);
+      const { data, error } = await supabase.from('coffee_shops').select('id').limit(1);
 
       if (error) {
         throw error;
@@ -78,19 +77,19 @@ export default function AddCoffeeShop() {
         ...prev,
         [parent]: {
           ...(prev[parent as keyof FormData] as Record<string, unknown>),
-          [child]: value
-        }
+          [child]: value,
+        },
       }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
   const addImage = () => {
     if (imageUrl && !formData.images.includes(imageUrl)) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        images: [...prev.images, imageUrl]
+        images: [...prev.images, imageUrl],
       }));
       setImageUrl('');
     }
@@ -98,25 +97,25 @@ export default function AddCoffeeShop() {
 
   const addVideo = () => {
     if (videoUrl && !formData.videos.includes(videoUrl)) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        videos: [...prev.videos, videoUrl]
+        videos: [...prev.videos, videoUrl],
       }));
       setVideoUrl('');
     }
   };
 
   const removeImage = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      images: prev.images.filter((_, i) => i !== index)
+      images: prev.images.filter((_, i) => i !== index),
     }));
   };
 
   const removeVideo = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      videos: prev.videos.filter((_, i) => i !== index)
+      videos: prev.videos.filter((_, i) => i !== index),
     }));
   };
 
@@ -124,9 +123,9 @@ export default function AddCoffeeShop() {
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
+    if (e.type === 'dragenter' || e.type === 'dragover') {
       setDragActive(true);
-    } else if (e.type === "dragleave") {
+    } else if (e.type === 'dragleave') {
       setDragActive(false);
     }
   };
@@ -159,35 +158,35 @@ export default function AddCoffeeShop() {
 
     try {
       // Validate file types
-      const imageFiles = files.filter(file => {
+      const imageFiles = files.filter((file) => {
         const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
         if (!validTypes.includes(file.type)) {
           setMessage({
             type: 'error',
-            content: `File "${file.name}" không phải là định dạng ảnh được hỗ trợ (JPG, PNG, WEBP, HEIC)`
+            content: `File "${file.name}" không phải là định dạng ảnh được hỗ trợ (JPG, PNG, WEBP, HEIC)`,
           });
           return false;
         }
         return true;
       });
-      
+
       if (imageFiles.length === 0) {
         throw new Error('Vui lòng chọn tệp hình ảnh hợp lệ');
       }
 
       // Check file sizes
-      const oversizedFiles = imageFiles.filter(file => {
+      const oversizedFiles = imageFiles.filter((file) => {
         const maxSize = 20 * 1024 * 1024; // 20MB
         if (file.size > maxSize) {
           setMessage({
             type: 'error',
-            content: `File "${file.name}" vượt quá giới hạn 20MB`
+            content: `File "${file.name}" vượt quá giới hạn 20MB`,
           });
           return true;
         }
         return false;
       });
-      
+
       if (oversizedFiles.length > 0) {
         throw new Error(`${oversizedFiles.length} tệp vượt quá giới hạn 20MB`);
       }
@@ -210,12 +209,12 @@ export default function AddCoffeeShop() {
               onUploadProgress: (progress: UploadProgressEvent) => {
                 if (progress) {
                   const percent = (progress.loaded / progress.total) * 100;
-                  setUploadProgress(prev => ({
+                  setUploadProgress((prev) => ({
                     ...prev,
-                    [fileName]: Math.round(percent)
+                    [fileName]: Math.round(percent),
                   }));
                 }
-              }
+              },
             });
 
           if (uploadError) {
@@ -223,39 +222,40 @@ export default function AddCoffeeShop() {
           }
 
           // Get public URL
-          const { data } = supabase.storage
-            .from('coffee-shop-images')
-            .getPublicUrl(filePath);
+          const { data } = supabase.storage.from('coffee-shop-images').getPublicUrl(filePath);
 
+          // Ensure we have a valid URL
           let publicUrl = data.publicUrl;
-          if (!publicUrl.startsWith('http')) {
+          if (!publicUrl.startsWith('https://')) {
             publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/coffee-shop-images/${filePath}`;
           }
-          
-          console.log('Final URL:', publicUrl);
+
+          // Log for debugging
+          console.log('File path:', filePath);
+          console.log('Generated URL:', publicUrl);
 
           return publicUrl;
         } catch (error) {
           console.error(`Error uploading file ${file.name}:`, error);
           setMessage({
             type: 'error',
-            content: `Lỗi khi tải lên file "${file.name}": ${error instanceof Error ? error.message : 'Lỗi không xác định'}`
+            content: `Lỗi khi tải lên file "${file.name}": ${error instanceof Error ? error.message : 'Lỗi không xác định'}`,
           });
           return null;
         }
       });
 
-      const uploadedUrls = (await Promise.all(uploadPromises)).filter(url => url !== null);
+      const uploadedUrls = (await Promise.all(uploadPromises)).filter((url) => url !== null);
 
       if (uploadedUrls.length > 0) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          images: [...prev.images, ...uploadedUrls]
+          images: [...prev.images, ...uploadedUrls],
         }));
 
         setMessage({
           type: 'success',
-          content: `Đã tải lên ${uploadedUrls.length} ảnh thành công!`
+          content: `Đã tải lên ${uploadedUrls.length} ảnh thành công!`,
         });
       }
 
@@ -267,7 +267,7 @@ export default function AddCoffeeShop() {
       console.error('Error handling files:', error);
       setMessage({
         type: 'error',
-        content: error instanceof Error ? error.message : 'Có lỗi xảy ra khi xử lý files.'
+        content: error instanceof Error ? error.message : 'Có lỗi xảy ra khi xử lý files.',
       });
     } finally {
       setIsUploading(false);
@@ -281,17 +281,15 @@ export default function AddCoffeeShop() {
     setMessage({ type: '', content: '' });
 
     try {
-      const { error } = await supabase
-        .from('coffee_shops')
-        .insert([formData]);
+      const { error } = await supabase.from('coffee_shops').insert([formData]);
 
       if (error) throw error;
 
       setMessage({
         type: 'success',
-        content: 'Quán cafe đã được thêm thành công!'
+        content: 'Quán cafe đã được thêm thành công!',
       });
-      
+
       // Reset form
       setFormData({
         name: '',
@@ -310,7 +308,7 @@ export default function AddCoffeeShop() {
     } catch (error) {
       setMessage({
         type: 'error',
-        content: 'Có lỗi xảy ra khi thêm quán cafe.'
+        content: 'Có lỗi xảy ra khi thêm quán cafe.',
       });
       console.error('Error:', error);
     } finally {
@@ -322,7 +320,7 @@ export default function AddCoffeeShop() {
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-6xl mx-auto bg-white rounded-lg shadow">
         {message.content && (
-          <div 
+          <div
             className={`p-4 ${
               message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
             }`}
@@ -333,7 +331,7 @@ export default function AddCoffeeShop() {
         <form onSubmit={handleSubmit} className="flex">
           {/* Left Zone - Image Upload */}
           <div className="w-1/2 p-6 border-r border-gray-200">
-            <div 
+            <div
               className={`h-full border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center relative cursor-pointer
                 ${dragActive ? 'border-brown-500 bg-brown-50' : 'border-gray-300 hover:bg-gray-50 hover:border-gray-400'}
                 ${isUploading ? 'border-gray-400 bg-gray-50 cursor-wait' : ''}
@@ -347,9 +345,25 @@ export default function AddCoffeeShop() {
             >
               {isUploading ? (
                 <div className="flex flex-col items-center">
-                  <svg className="animate-spin h-10 w-10 text-brown-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin h-10 w-10 text-brown-500"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                   </svg>
                   <p className="mt-4 text-sm text-gray-600">Đang tải lên...</p>
                 </div>
@@ -363,16 +377,16 @@ export default function AddCoffeeShop() {
                     multiple
                     className="hidden"
                   />
-                  <svg 
-                    className="w-12 h-12 text-gray-400 group-hover:text-gray-500" 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <svg
+                    className="w-12 h-12 text-gray-400 group-hover:text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth="2" 
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
                       d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                     />
                   </svg>
@@ -387,41 +401,63 @@ export default function AddCoffeeShop() {
 
               {/* Preview Images */}
               {formData.images.length > 0 && (
-                <div className="mt-8 w-full" onClick={e => e.stopPropagation()}>
+                <div className="mt-8 w-full" onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-medium text-gray-900">
                       Ảnh đã tải lên ({formData.images.length})
                     </h3>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {formData.images.map((url, index) => (
-                      <div key={index} className="relative group aspect-square">
-                        <div className="w-full h-full rounded-lg overflow-hidden">
-                          <img
-                            src={url}
-                            alt={`Preview ${index + 1}`}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                            onError={(e) => {
-                              console.error('Image load error:', url);
-                              const imgElement = e.target as HTMLImageElement;
-                              imgElement.style.backgroundColor = '#f3f4f6';
-                              imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTMgNEg4LjhDNy4xMTk4NCA0IDYuMjc5NzYgNCA1LjYzODAzIDQuMzI2OThDNS4wNzM1NCA0LjYxNDYgNC42MTQ2IDUuMDczNTQgNC4zMjY5OCA1LjYzODAzQzQgNi4yNzk3NiA0IDcuMTE5ODQgNCA4LjhWMTUuMkM0IDE2Ljg4MDIgNCAxNy43MjAyIDQuMzI2OTggMTguMzYyQzQuNjE0NiAxOC45MjY1IDUuMDczNTQgMTkuMzg1NCA1LjYzODAzIDE5LjY3M0M2LjI3OTc2IDIwIDcuMTE5ODQgMjAgOC44IDIwSDE1LjJDMTYuODgwMiAyMCAxNy43MjAyIDIwIDE4LjM2MiAxOS42NzNDMTguOTI2NSAxOS4zODU0IDE5LjM4NTQgMTguOTI2NSAxOS42NzMgMTguMzYyQzIwIDE3LjcyMDIgMjAgMTYuODgwMiAyMCAxNS4yVjExTTIwIDhWNE0yMCA0SDE2TTIwIDRMMTYgOCIgc3Ryb2tlPSIjNjQ3NDhCIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==' // Placeholder SVG
-                            }}
-                          />
+                    {formData.images.map((url, index) => {
+                      console.log('images', url); // Debug log
+                      return (
+                        <div key={index} className="relative group aspect-square">
+                          <div className="w-full h-full rounded-lg overflow-hidden bg-gray-100">
+                            <img
+                              src={url}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-full object-cover"
+                              crossOrigin="anonymous"
+                              onLoad={() => console.log('Image loaded successfully:', url)}
+                              onError={(e) => {
+                                console.error('Image load error:', url);
+                                const imgElement = e.target as HTMLImageElement;
+                                imgElement.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTMgNEg4LjhDNy4xMTk4NCA0IDYuMjc5NzYgNCA1LjYzODAzIDQuMzI2OThDNS4wNzM1NCA0LjYxNDYgNC42MTQ2IDUuMDczNTQgNC4zMjY5OCA1LjYzODAzQzQgNi4yNzk3NiA0IDcuMTE5ODQgNCA4LjhWMTUuMkM0IDE2Ljg4MDIgNCAxNy43MjAyIDQuMzI2OTggMTguMzYyQzQuNjE0NiAxOC45MjY1IDUuMDczNTQgMTkuMzg1NCA1LjYzODAzIDE5LjY3M0M2LjI3OTc2IDIwIDcuMTE5ODQgMjAgOC44IDIwSDE1LjJDMTYuODgwMiAyMCAxNy43MjAyIDIwIDE4LjM2MiAxOS42NzNDMTguOTI2NSAxOS4zODU0IDE5LjM4NTQgMTguOTI2NSAxOS42NzMgMTguMzYyQzIwIDE3LjcyMDIgMjAgMTYuODgwMiAyMCAxNS4yVjExTTIwIDhWNE0yMCA0SDE2TTIwIDRMMTYgOCIgc3Ryb2tlPSIjNjQ3NDhCIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==';
+                              }}
+                            />
+
+                            {/* <Image
+                              src={'https://images.pexels.com/photos/374757/pexels-photo-374757.jpeg'}
+                              alt={`Preview ${index + 1}`}
+                              width={300}
+                              height={300}
+                              className="w-full h-auto object-cover group-hover:scale-110 transition duration-300"
+                            /> */}
+                          </div>
+                          {/* <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 rounded-lg z-10" /> */}
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-red-600"
+                            title="Xóa ảnh"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
                         </div>
-                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 rounded-lg" />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-red-600"
-                          title="Xóa ảnh"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -581,4 +617,4 @@ export default function AddCoffeeShop() {
       </div>
     </div>
   );
-} 
+}
