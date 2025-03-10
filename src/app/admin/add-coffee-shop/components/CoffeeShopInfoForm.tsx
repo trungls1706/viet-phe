@@ -1,11 +1,13 @@
 import type { CoffeeShop } from '@/lib/supabase/types';
 import { useMemo, memo } from 'react';
+import { CKEditor } from '@ckeditor/ckeditor5-react';
+import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 
 type FormData = Omit<CoffeeShop, 'id' | 'created_at'>;
 
 interface CoffeeShopInfoFormProps {
   formData: FormData;
-  onFormDataChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onFormDataChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { name: string; value: string }) => void;
   isSubmitting: boolean;
   isFormValid: boolean;
 }
@@ -16,6 +18,12 @@ function CoffeeShopInfoForm({
   isSubmitting,
   isFormValid,
 }: CoffeeShopInfoFormProps) {
+
+  const handleEditorChange = (_event: any, editor: any) => {
+    const data = editor.getData();
+    onFormDataChange({ name: 'description', value: data });
+  };
+
   return (
     <div className="w-1/2 p-6 space-y-6">
       {/* Tên quán */}
@@ -59,17 +67,17 @@ function CoffeeShopInfoForm({
         <label className="block text-base font-medium text-gray-900 mb-2">
           Mô tả <span className="text-red-500">*</span>
         </label>
-        <textarea
-          name="description"
-          value={formData.description}
-          onChange={onFormDataChange}
-          placeholder="Thêm mô tả chi tiết về quán"
-          rows={4}
-          required
-          className={`mt-1 block w-full rounded-[12px] border-gray-200 shadow-sm py-4 px-4 text-base text-gray-900 placeholder:text-gray-500 hover:border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200 ${
-            !formData.description.trim() ? 'border-red-300' : ''
-          }`}
-        />
+        <div className={`mt-1 ${!formData.description.trim() ? 'border-red-300' : ''}`}>
+          <CKEditor
+            editor={ClassicEditor}
+            data={formData.description}
+            onChange={handleEditorChange}
+            config={{
+              toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'undo', 'redo'],
+              placeholder: 'Thêm mô tả chi tiết về quán...',
+            }}
+          />
+        </div>
       </div>
 
       {/* Social Media Links */}

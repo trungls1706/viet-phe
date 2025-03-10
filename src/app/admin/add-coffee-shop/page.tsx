@@ -33,8 +33,12 @@ export default function AddCoffeeShop() {
       formData.images.length > 0;
   }, [formData.name, formData.address, formData.description, formData.images]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { name: string; value: string }
+  ) => {
+    const name = 'target' in e ? e.target.name : e.name;
+    const value = 'target' in e ? e.target.value : e.value;
+
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
       setFormData((prev: FormData) => ({
