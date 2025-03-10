@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import type { CoffeeShop } from '@/lib/supabase/types';
 import { ImageUploadZone } from '../../../add-coffee-shop/components';
-import { CKEditor } from '@ckeditor/ckeditor5-react';
-import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
+import { Editor } from '@tinymce/tinymce-react';
 
 export default function EditCoffeeShop({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -162,16 +161,25 @@ export default function EditCoffeeShop({ params }: { params: { id: string } }) {
                 Description <span className="text-red-500">*</span>
               </label>
               <div className="mt-1">
-                <CKEditor
-                  editor={ClassicEditor}
-                  data={formData.description}
-                  onChange={(_event: any, editor: any) => {
-                    const data = editor.getData();
-                    handleInputChange({ name: 'description', value: data });
+                <Editor
+                  apiKey="your-tinymce-api-key"
+                  value={formData.description}
+                  onEditorChange={(content) => {
+                    handleInputChange({ name: 'description', value: content });
                   }}
-                  config={{
-                    toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'undo', 'redo'],
-                    placeholder: 'Add detailed description about the coffee shop...',
+                  init={{
+                    height: 300,
+                    menubar: false,
+                    plugins: [
+                      'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                      'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                      'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
+                    ],
+                    toolbar: 'undo redo | blocks | ' +
+                      'bold italic forecolor | alignleft aligncenter ' +
+                      'alignright alignjustify | bullist numlist outdent indent | ' +
+                      'removeformat | help',
+                    content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
                   }}
                 />
               </div>

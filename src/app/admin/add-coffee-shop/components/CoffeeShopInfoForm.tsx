@@ -1,13 +1,14 @@
 import type { CoffeeShop } from '@/lib/supabase/types';
 import { useMemo, memo } from 'react';
-import { CKEditor } from '@ckeditor/ckeditor5-react';
-import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
+import { Editor } from '@tinymce/tinymce-react';
 
 type FormData = Omit<CoffeeShop, 'id' | 'created_at'>;
 
 interface CoffeeShopInfoFormProps {
   formData: FormData;
-  onFormDataChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { name: string; value: string }) => void;
+  onFormDataChange: (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { name: string; value: string }
+  ) => void;
   isSubmitting: boolean;
   isFormValid: boolean;
 }
@@ -18,12 +19,6 @@ function CoffeeShopInfoForm({
   isSubmitting,
   isFormValid,
 }: CoffeeShopInfoFormProps) {
-
-  const handleEditorChange = (_event: any, editor: any) => {
-    const data = editor.getData();
-    onFormDataChange({ name: 'description', value: data });
-  };
-
   return (
     <div className="w-1/2 p-6 space-y-6">
       {/* Tên quán */}
@@ -68,13 +63,41 @@ function CoffeeShopInfoForm({
           Mô tả <span className="text-red-500">*</span>
         </label>
         <div className={`mt-1 ${!formData.description.trim() ? 'border-red-300' : ''}`}>
-          <CKEditor
-            editor={ClassicEditor}
-            data={formData.description}
-            onChange={handleEditorChange}
-            config={{
-              toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'undo', 'redo'],
-              placeholder: 'Thêm mô tả chi tiết về quán...',
+          <Editor
+            apiKey={process.env.NEXT_PUBLIC_TINYMCE_API_KEY}
+            value={formData.description}
+            onEditorChange={(content) => {
+              onFormDataChange({ name: 'description', value: content });
+            }}
+            init={{
+              height: 300,
+              menubar: false,
+              plugins: [
+                'advlist',
+                'autolink',
+                'lists',
+                'link',
+                'image',
+                'charmap',
+                'preview',
+                'anchor',
+                'searchreplace',
+                'visualblocks',
+                'code',
+                'fullscreen',
+                'insertdatetime',
+                'media',
+                'table',
+                'code',
+                'help',
+                'wordcount',
+              ],
+              toolbar:
+                'undo redo | blocks | ' +
+                'bold italic forecolor | alignleft aligncenter ' +
+                'alignright alignjustify | bullist numlist outdent indent | ' +
+                'removeformat | help',
+              content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
             }}
           />
         </div>
@@ -198,4 +221,4 @@ function CoffeeShopInfoForm({
   );
 }
 
-export default memo(CoffeeShopInfoForm); 
+export default memo(CoffeeShopInfoForm);
