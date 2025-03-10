@@ -144,7 +144,7 @@ export default function CoffeeShopsAdmin() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-3">
                         <Link
-                          href={`/admin/coffee-shops/${shop.id}`}
+                          href={`/photos/${shop.id}`}
                           className="text-blue-600 hover:text-blue-900"
                         >
                           View

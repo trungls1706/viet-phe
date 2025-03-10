@@ -4,16 +4,19 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import MasonryGrid from '@/components/MasonryGrid';
 import { CoffeeImage } from '@/data/pexelsImages';
+import type { CoffeeShop } from '@/lib/supabase/types';
 
 interface PhotoDetailClientProps {
   image: CoffeeImage;
-  prevImage: CoffeeImage | undefined;
-  nextImage: CoffeeImage | undefined;
+  coffeeShop: CoffeeShop;
+  prevImage: CoffeeImage | null;
+  nextImage: CoffeeImage | null;
   relatedImages: CoffeeImage[];
 }
 
 export default function PhotoDetailClient({
   image,
+  coffeeShop,
   prevImage,
   nextImage,
   relatedImages,
@@ -85,15 +88,20 @@ export default function PhotoDetailClient({
               </div>
               <div className="flex items-center gap-3">
                 <button className="text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md transition">
-                  Collect
+                  Share
                 </button>
                 <button className="text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md transition flex items-center gap-2">
                   <span>Like</span>
-                  <span className="text-sm">48</span>
+                  <span className="text-sm">{coffeeShop.rating}</span>
                 </button>
-                <button className="text-white bg-[#05A081] hover:bg-[#05A081]/90 px-4 py-2 rounded-md transition">
-                  Free Download
-                </button>
+                <a
+                  href={coffeeShop.fb_url || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white bg-[#05A081] hover:bg-[#05A081]/90 px-4 py-2 rounded-md transition"
+                >
+                  Visit Facebook
+                </a>
               </div>
             </div>
 
@@ -116,8 +124,8 @@ export default function PhotoDetailClient({
               {/* Right Zone - Details */}
               <div className="lg:w-1/3 space-y-6">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 mb-2">{image.title}</h1>
-                  <p className="text-gray-600">Captured by Coffee Lover</p>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">{coffeeShop.name}</h1>
+                  <p className="text-gray-600">A cozy coffee shop in the heart of the city</p>
                 </div>
 
                 {/* Location Info */}
@@ -145,9 +153,11 @@ export default function PhotoDetailClient({
                       />
                     </svg>
                     <div>
-                      <h3 className="font-medium text-gray-900">Coffee House Downtown</h3>
-                      <p className="text-gray-600">123 Coffee Street, City Center</p>
-                      <p className="text-gray-600">Open Daily: 7:00 AM - 10:00 PM</p>
+                      <h3 className="font-medium text-gray-900">{coffeeShop.name}</h3>
+                      <p className="text-gray-600">{coffeeShop.address}</p>
+                      <p className="text-gray-600">
+                        Coordinates: {coffeeShop.coordinates.latitude}, {coffeeShop.coordinates.longitude}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -162,7 +172,7 @@ export default function PhotoDetailClient({
                           <svg
                             key={star}
                             xmlns="http://www.w3.org/2000/svg"
-                            className="h-5 w-5"
+                            className={`h-5 w-5 ${star <= coffeeShop.rating ? 'text-yellow-400' : 'text-gray-300'}`}
                             viewBox="0 0 20 20"
                             fill="currentColor"
                           >
@@ -170,76 +180,59 @@ export default function PhotoDetailClient({
                           </svg>
                         ))}
                       </div>
-                      <span className="text-gray-600">5.0</span>
+                      <span className="text-gray-600">{coffeeShop.rating}.0</span>
                     </div>
-                    <p className="text-gray-700">
-                      A cozy spot with amazing coffee and a peaceful atmosphere. The perfect place
-                      to work or relax. Their signature latte art is Instagram-worthy!
-                    </p>
+                    <div
+                      className="text-gray-700 prose"
+                      dangerouslySetInnerHTML={{ __html: coffeeShop.description }}
+                    />
                   </div>
                 </div>
 
-                {/* Additional Info */}
+                {/* Social Media */}
                 <div className="border-t pt-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Highlights</h2>
-                  <ul className="space-y-2 text-gray-600">
-                    <li className="flex items-center gap-2">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 text-green-500"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Social Media</h2>
+                  <div className="space-y-3">
+                    {coffeeShop.fb_url && (
+                      <a
+                        href={coffeeShop.fb_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-blue-600 hover:text-blue-800"
                       >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      Free Wi-Fi
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 text-green-500"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
+                        <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                        </svg>
+                        Facebook
+                      </a>
+                    )}
+                    {coffeeShop.instagram_url && (
+                      <a
+                        href={coffeeShop.instagram_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-pink-600 hover:text-pink-800"
                       >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      Power Outlets Available
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 text-green-500"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      Outdoor Seating
-                    </li>
-                  </ul>
+                        <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63c-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419.419-.824.679-1.38.896-.42.164-1.065.36-2.235.413-1.274.057-1.649.07-4.859.07-3.211 0-3.586-.015-4.859-.074-1.171-.061-1.816-.256-2.236-.421-.569-.224-.96-.479-1.379-.899-.421-.419-.69-.824-.9-1.38-.165-.42-.359-1.065-.42-2.235-.045-1.26-.061-1.649-.061-4.844 0-3.196.016-3.586.061-4.861.061-1.17.255-1.814.42-2.234.21-.57.479-.96.9-1.381.419-.419.81-.689 1.379-.898.42-.166 1.051-.361 2.221-.421 1.275-.045 1.65-.06 4.859-.06l.045.03zm0 3.678c-3.405 0-6.162 2.76-6.162 6.162 0 3.405 2.76 6.162 6.162 6.162 3.405 0 6.162-2.76 6.162-6.162 0-3.405-2.76-6.162-6.162-6.162zM12 16c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm7.846-10.405c0 .795-.646 1.44-1.44 1.44-.795 0-1.44-.646-1.44-1.44 0-.794.646-1.439 1.44-1.439.793-.001 1.44.645 1.44 1.439z" />
+                        </svg>
+                        Instagram
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Footer - Related Media */}
-            <div className="border-t bg-gray-50 p-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                More from Coffee House Downtown
-              </h2>
-              <MasonryGrid images={relatedImages} columns={3} />
-            </div>
+            {relatedImages.length > 0 && (
+              <div className="border-t bg-gray-50 p-8">
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">
+                  More from {coffeeShop.name}
+                </h2>
+                <MasonryGrid images={relatedImages} columns={3} />
+              </div>
+            )}
           </div>
         </div>
 
