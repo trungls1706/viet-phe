@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase/client';
 import Image from 'next/image';
-import { useRef, useState } from 'react';
+import { useRef, useState, memo } from 'react';
 
 interface UploadProgressEvent {
   loaded: number;
@@ -13,7 +13,7 @@ interface ImageUploadZoneProps {
   onMessage: (type: string, content: string) => void;
 }
 
-export default function ImageUploadZone({ images, onImagesChange, onMessage }: ImageUploadZoneProps) {
+function ImageUploadZone({ images, onImagesChange, onMessage }: ImageUploadZoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [isUploading, setIsUploading] = useState(false);
@@ -308,4 +308,6 @@ export default function ImageUploadZone({ images, onImagesChange, onMessage }: I
       </div>
     </div>
   );
-} 
+}
+
+export default memo(ImageUploadZone); 

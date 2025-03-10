@@ -1,5 +1,5 @@
 import type { CoffeeShop } from '@/lib/supabase/types';
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 
 type FormData = Omit<CoffeeShop, 'id' | 'created_at'>;
 
@@ -10,7 +10,7 @@ interface CoffeeShopInfoFormProps {
   isFormValid: boolean;
 }
 
-export default function CoffeeShopInfoForm({
+function CoffeeShopInfoForm({
   formData,
   onFormDataChange,
   isSubmitting,
@@ -188,4 +188,6 @@ export default function CoffeeShopInfoForm({
       </div>
     </div>
   );
-} 
+}
+
+export default memo(CoffeeShopInfoForm); 
