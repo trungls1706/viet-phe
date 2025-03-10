@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import type { CoffeeShop } from '@/lib/supabase/types';
 import Image from 'next/image';
+import { useEffect, useRef, useState, useMemo } from 'react';
 
 type FormData = Omit<CoffeeShop, 'id' | 'created_at'>;
 interface UploadProgressEvent {
@@ -12,11 +12,6 @@ interface UploadProgressEvent {
 }
 
 export default function AddCoffeeShop() {
-  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>(
-    'checking'
-  );
-  const [connectionError, setConnectionError] = useState<string>('');
-
   const [formData, setFormData] = useState<FormData>({
     name: '',
     description: '',
@@ -32,54 +27,20 @@ export default function AddCoffeeShop() {
     },
   });
 
-  const [imageUrl, setImageUrl] = useState('');
-  const [videoUrl, setVideoUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', content: '' });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [isUploading, setIsUploading] = useState(false);
-
   const [dragActive, setDragActive] = useState(false);
 
-  const [isFormValid, setIsFormValid] = useState(false);
-
-  // Check Supabase connection when component mounts
-  useEffect(() => {
-    checkSupabaseConnection();
-  }, []);
-
-  // Add validation check effect
-  useEffect(() => {
-    const isValid = 
-      formData.name.trim() !== '' && 
+  const isFormValid = useMemo(() => {
+    return formData.name.trim() !== '' && 
       formData.address.trim() !== '' && 
       formData.description.trim() !== '' &&
       formData.images.length > 0;
-    
-    setIsFormValid(isValid);
-  }, [formData]);
-
-  // Function to check Supabase connection
-  const checkSupabaseConnection = async () => {
-    try {
-      setConnectionStatus('checking');
-      // Try to query the coffee_shops table
-      const { data, error } = await supabase.from('coffee_shops').select('id').limit(1);
-
-      if (error) {
-        throw error;
-      }
-
-      setConnectionStatus('connected');
-      setConnectionError('');
-    } catch (error) {
-      setConnectionStatus('error');
-      setConnectionError(error instanceof Error ? error.message : 'Không thể kết nối đến Supabase');
-      console.error('Supabase connection error:', error);
-    }
-  };
+  }, [formData.name, formData.address, formData.description, formData.images]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -217,6 +178,7 @@ export default function AddCoffeeShop() {
           const fileExt = file.name.split('.').pop();
           const fileName = `${timestamp}-${Math.random().toString(36).substring(2)}${fileExt ? `.${fileExt}` : ''}`;
           const filePath = fileName;
+
 
           // Upload to Supabase Storage
           const { data: uploadData, error: uploadError } = await supabase.storage
