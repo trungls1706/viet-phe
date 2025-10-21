@@ -14,31 +14,19 @@ export function useGoogleMaps(
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const scriptLoadedRef = useRef(true);
+  const scriptLoadedRef = useRef(false);
 
   useEffect(() => {
-
-    console.log(scriptLoadedRef.current)
-    console.log(import.meta.env.VITE_GOOGLE_MAPS_API_KEY)
-
-    if (!scriptLoadedRef.current || !import.meta.env.VITE_GOOGLE_MAPS_API_KEY) {
-      return;
-    }
-
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
-    if (apiKey === 'YOUR_GOOGLE_MAPS_API_KEY_HERE') {
-      setLoadError(new Error('Please configure your Google Maps API key'));
+    if (!apiKey) {
+      setLoadError(new Error('Google Maps API key is missing'));
       return;
     }
 
-    const handleLoad = () => {
+    // Nếu script đã load rồi thì không cần load lại
+    if (scriptLoadedRef.current) {
       setIsLoaded(true);
-    };
-
-    if (window.google && window.google.maps) {
-      handleLoad();
-      scriptLoadedRef.current = true;
       return;
     }
 
@@ -47,16 +35,19 @@ export function useGoogleMaps(
     script.async = true;
     script.defer = true;
 
-    script.onerror = () => {
-      setLoadError(new Error('Failed to load Google Maps'));
+    window.initMap = () => {
+      setIsLoaded(true);
+      scriptLoadedRef.current = true;
     };
 
-    window.addEventListener('google-maps-loaded', handleLoad);
+    script.onerror = () => {
+      setLoadError(new Error('Failed to load Google Maps script'));
+    };
+
     document.head.appendChild(script);
-    scriptLoadedRef.current = true;
 
     return () => {
-      window.removeEventListener('google-maps-loaded', handleLoad);
+      delete (window as any).initMap;
     };
   }, []);
 

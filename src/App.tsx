@@ -153,9 +153,6 @@ function App() {
     return placesServiceRef.current?.getPhotoUrl(photoRef) || '';
   };
 
-  console.log('userLocation',userLocation)
-  console.log('isLoaded',isLoaded)
-
   if (loadError) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-gray-100">
